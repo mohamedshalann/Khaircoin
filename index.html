@@ -1,73 +1,147 @@
-import hashlib
-import json
-from time import time
-from uuid import uuid4
-
-class Blockchain:
-    def __init__(self):
-        self.chain = []
-        self.pending_transactions = []
-        self.nodes = set()
-        self.new_block(previous_hash="1", proof=100)  # الكتلة الأولى (Genesis Block)
-        self.total_coins = 0
-        self.max_coins = 5000000  # العدد الأقصى للعملات
-
-    def new_block(self, proof, previous_hash=None):
-        block = {
-            'index': len(self.chain) + 1,
-            'timestamp': time(),
-            'transactions': self.pending_transactions,
-            'proof': proof,
-            'previous_hash': previous_hash or self.hash(self.chain[-1]),
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KhairCoin</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            padding: 20px;
         }
-        self.pending_transactions = []
-        self.chain.append(block)
-        return block
-
-    def new_transaction(self, sender, recipient, amount):
-        if self.total_coins + amount > self.max_coins:
-            raise ValueError("تم تجاوز الحد الأقصى للعملات.")
-        
-        transaction = {
-            'sender': sender,
-            'recipient': recipient,
-            'amount': amount,
+        h1 {
+            color: #333;
         }
-        self.pending_transactions.append(transaction)
-        self.total_coins += amount
-        return self.last_block['index'] + 1
+        .wallet-info, .mine-section {
+            background: #fff;
+            padding: 20px;
+            margin: 20px auto;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <h1>مرحبًا بك في KhairCoin!</h1>
+    
+    <div class="wallet-info">
+        <h2>محفظتك</h2>
+        <p><strong>عنوان المحفظة:</strong> <span id="walletAddress"></span></p>
+        <p><strong>رصيدك:</strong> <span id="balance">0</span> KhairCoin</p>
+    </div>
 
-    @staticmethod
-    def hash(block):
-        block_string = json.dumps(block, sort_keys=True).encode()
-        return hashlib.sha256(block_string).hexdigest()
+    <div class="mine-section">
+        <h2>تعدين عملات جديدة</h2>
+        <button onclick="mineCoin()">تعدين</button>
+        <p id="miningResult"></p>
+    </div>
 
-    @property
-    def last_block(self):
-        return self.chain[-1]
+    <script>
+        class Blockchain {
+            constructor() {
+                this.chain = [];
+                this.pendingTransactions = [];
+                this.totalCoins = 0;
+                this.maxCoins = 5000000; // العدد الأقصى للعملات
+                this.createGenesisBlock();
+            }
 
-    def proof_of_work(self, last_proof):
-        proof = 0
-        while not self.valid_proof(last_proof, proof):
-            proof += 1
-        return proof
+            createGenesisBlock() {
+                const genesisBlock = {
+                    index: 1,
+                    timestamp: Date.now(),
+                    transactions: [],
+                    proof: 100,
+                    previousHash: "1",
+                };
+                this.chain.push(genesisBlock);
+            }
 
-    @staticmethod
-    def valid_proof(last_proof, proof):
-        guess = f'{last_proof}{proof}'.encode()
-        guess_hash = hashlib.sha256(guess).hexdigest()
-        return guess_hash[:4] == "0000"  # صعوبة التعدين
+            newTransaction(sender, recipient, amount) {
+                if (this.totalCoins + amount > this.maxCoins) {
+                    throw new Error("تم تجاوز الحد الأقصى للعملات.");
+                }
+                const transaction = { sender, recipient, amount };
+                this.pendingTransactions.push(transaction);
+                this.totalCoins += amount;
+                return this.getLastBlock().index + 1;
+            }
 
-# إنشاء البلوكشين
-blockchain = Blockchain()
+            getLastBlock() {
+                return this.chain[this.chain.length - 1];
+            }
 
-# إنشاء محفظة لك
-wallet_address = str(uuid4())
-print(f"عنوان محفظتك: {wallet_address}")
+            mineBlock() {
+                const lastBlock = this.getLastBlock();
+                const proof = this.proofOfWork(lastBlock.proof);
+                this.newTransaction("0", walletAddress, 1); // مكافأة التعدين
+                const block = {
+                    index: this.chain.length + 1,
+                    timestamp: Date.now(),
+                    transactions: this.pendingTransactions,
+                    proof,
+                    previousHash: this.hashBlock(lastBlock),
+                };
+                this.pendingTransactions = [];
+                this.chain.push(block);
+                return block;
+            }
 
-# إضافة 100,000 عملة إلى محفظتك
-blockchain.new_transaction(sender="0", recipient=wallet_address, amount=100000)
+            proofOfWork(lastProof) {
+                let proof = 0;
+                while (!this.validProof(lastProof, proof)) {
+                    proof++;
+                }
+                return proof;
+            }
 
-# طباعة البلوكشين
-print("البلوكشين:", json.dumps(blockchain.chain, indent=4))
-print(f"إجمالي العملات حتى الآن: {blockchain.total_coins}")
+            validProof(lastProof, proof) {
+                const guess = `${lastProof}${proof}`;
+                const guessHash = this.hash(guess);
+                return guessHash.startsWith("0000"); // صعوبة التعدين
+            }
+
+            hashBlock(block) {
+                const blockString = JSON.stringify(block);
+                return this.hash(blockString);
+            }
+
+            hash(data) {
+                return crypto.createHash('sha256').update(data).digest('hex');
+            }
+        }
+
+        // إنشاء محفظة عشوائية
+        const walletAddress = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        document.getElementById('walletAddress').textContent = walletAddress;
+
+        // إنشاء بلوكشين
+        const blockchain = new Blockchain();
+
+        // إعطاء 100,000 عملة عند تحميل الصفحة
+        blockchain.newTransaction("0", walletAddress, 100000);
+        document.getElementById('balance').textContent = blockchain.totalCoins;
+
+        // تعدين عملة جديدة
+        function mineCoin() {
+            const block = blockchain.mineBlock();
+            document.getElementById('balance').textContent = blockchain.totalCoins;
+            document.getElementById('miningResult').textContent = `تم تعدين كتلة جديدة! الرصيد الحالي: ${blockchain.totalCoins} KhairCoin`;
+        }
+    </script>
+</body>
+</html>
